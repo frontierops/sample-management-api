@@ -4,7 +4,7 @@ databases:
       - name: PROD
         tables:
           - name: CUSTOMERS
-            description: Customer overview. One row per customer with lifetime metrics.
+            description: Customer overview. One row per customer with lifetime metrics
             columns:
               - name: CUSTOMER_ID
                 type: NUMBER
