@@ -11,12 +11,20 @@ trust binding configured on the platform.
 ```
 orgs/
   test/                      ← the target organization's SLUG on FrontierOps
+    connector-slug           ← the database connector SLUG in that org (one line)
     semantic-layers/
       analytics.yaml         ← the semantic layer's SLUG = the filename
 ```
 
 Which org each file goes to is decided by the folder name. A folder for an
 org outside the trust binding's grant fails with 403 for that file only.
+
+**The connector is per-org.** Each customer org has its own database connector
+(possibly a different vendor), so each `orgs/<slug>/` directory declares which
+connector its semantic layers attach to via a one-line `connector` file
+containing that connector's slug. The connector must already exist in the org
+and be a database-type connector; create it once in the dashboard
+(Connectors → Add) before provisioning layers that reference it.
 
 ## One-time setup
 

@@ -10,7 +10,9 @@ permissions:
 
 env:
   MANAGEMENT_API: https://app.frontierops.ai   # also the required OIDC audience
-  CONNECTOR: snowflake                          # database connector slug in the target orgs
+  # The database connector each semantic layer attaches to varies PER ORG (each
+  # customer has its own connector, possibly a different vendor). So it's not a
+  # global here — each org declares its connector in orgs/<slug>/connector-slug.
 
 jobs:
   # ── Pull requests: validate every YAML file, fail the check on errors ──
@@ -87,12 +89,18 @@ jobs:
             [ -e "$file" ] || continue
             org=$(basename "$(dirname "$(dirname "$file")")")
             slug=$(basename "$file" .yaml)
-            echo "Applying $org/$slug"
+            # Each org declares which database connector its layers attach to.
+            if [ ! -f "orgs/$org/connector-slug" ]; then
+              echo "✗ $org/$slug: missing orgs/$org/connector-slug (the connector slug in the '$org' org)"
+              status=1; continue
+            fi
+            connector=$(tr -d '[:space:]' < "orgs/$org/connector-slug")
+            echo "Applying $org/$slug (connector: $connector)"
             yaml=$(jq -Rs . < "$file")
             curl -sS --fail-with-body -X PUT \
               "$MANAGEMENT_API/api/v1/management/orgs/$org/semantic-layers/by-slug/$slug" \
               -H "Authorization: Bearer $ACCESS_TOKEN" \
               -H 'Content-Type: application/json' \
-              -d "{\"connector\":\"$CONNECTOR\",\"model_yaml\":$yaml}" || status=1
+              -d "{\"connector\":\"$connector\",\"model_yaml\":$yaml}" || status=1
           done
           exit $status
