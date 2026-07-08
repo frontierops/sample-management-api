@@ -1,0 +1,35 @@
+databases:
+  - name: ANALYTICS
+    schemas:
+      - name: PROD
+        tables:
+          - name: CUSTOMERS
+            description: Customer overview. One row per customer with lifetime metrics.
+            columns:
+              - name: CUSTOMER_ID
+                type: NUMBER
+                description: Unique identifier for the customer
+              - name: CUSTOMER_NAME
+                type: VARCHAR
+                description: Customer full name
+              - name: LIFETIME_ORDERS
+                type: NUMBER
+                description: Total number of orders the customer has placed
+              - name: FIRST_ORDERED_AT
+                type: TIMESTAMP_NTZ
+                description: When the customer placed their first order
+          - name: ORDERS
+            description: Order fact table. One row per order.
+            columns:
+              - name: ORDER_ID
+                type: NUMBER
+                description: Unique identifier for the order
+              - name: CUSTOMER_ID
+                type: NUMBER
+                description: Customer who placed the order
+              - name: ORDER_TOTAL
+                type: NUMBER
+                description: Order total in cents
+              - name: ORDERED_AT
+                type: TIMESTAMP_NTZ
+                description: When the order was placed

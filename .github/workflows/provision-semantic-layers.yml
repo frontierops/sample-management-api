@@ -1,0 +1,88 @@
+name: Semantic layers
+on:
+  pull_request:          # PRs: dry-run validation only — nothing is written
+  push:
+    branches: [main]     # merges to main: apply
+
+permissions:
+  id-token: write   # required — lets the job request a GitHub OIDC token
+  contents: read
+
+env:
+  MANAGEMENT_API: https://app.frontierops.ai   # also the required OIDC audience
+  CONNECTOR: snowflake                          # database connector slug in the target orgs
+
+jobs:
+  # ── Pull requests: validate every YAML file, fail the check on errors ──
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Exchange GitHub OIDC token
+        run: |
+          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$MANAGEMENT_API" | jq -r '.value')
+          ACCESS_TOKEN=$(curl -sS --fail-with-body -X POST "$MANAGEMENT_API/api/v1/management/token" \
+            -H 'Content-Type: application/json' \
+            -d "{\"token\":\"$OIDC_TOKEN\"}" | jq -r '.access_token')
+          echo "::add-mask::$ACCESS_TOKEN"
+          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Validate semantic layers (dry-run, nothing written)
+        run: |
+          status=0
+          for file in orgs/*/semantic-layers/*.yaml; do
+            [ -e "$file" ] || continue
+            org=$(basename "$(dirname "$(dirname "$file")")")
+            slug=$(basename "$file" .yaml)
+            yaml=$(jq -Rs . < "$file")
+            result=$(curl -sS --fail-with-body -X POST \
+              "$MANAGEMENT_API/api/v1/management/orgs/$org/semantic-layers/validate" \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H 'Content-Type: application/json' \
+              -d "{\"model_yaml\":$yaml}") || { status=1; continue; }
+            if echo "$result" | jq -e '.valid' > /dev/null; then
+              echo "✓ $org/$slug"
+            else
+              echo "✗ $org/$slug:"
+              echo "$result" | jq -r '.errors[]' | sed 's/^/    /'
+              status=1
+            fi
+          done
+          exit $status
+
+  # ── Merges to main: idempotent apply ──
+  provision:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Exchange GitHub OIDC token
+        run: |
+          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$MANAGEMENT_API" | jq -r '.value')
+          ACCESS_TOKEN=$(curl -sS --fail-with-body -X POST "$MANAGEMENT_API/api/v1/management/token" \
+            -H 'Content-Type: application/json' \
+            -d "{\"token\":\"$OIDC_TOKEN\"}" | jq -r '.access_token')
+          echo "::add-mask::$ACCESS_TOKEN"
+          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Apply semantic layers (orgs/<org-slug>/semantic-layers/<layer-slug>.yaml)
+        run: |
+          status=0
+          for file in orgs/*/semantic-layers/*.yaml; do
+            [ -e "$file" ] || continue
+            org=$(basename "$(dirname "$(dirname "$file")")")
+            slug=$(basename "$file" .yaml)
+            echo "Applying $org/$slug"
+            yaml=$(jq -Rs . < "$file")
+            curl -sS --fail-with-body -X PUT \
+              "$MANAGEMENT_API/api/v1/management/orgs/$org/semantic-layers/by-slug/$slug" \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H 'Content-Type: application/json' \
+              -d "{\"connector\":\"$CONNECTOR\",\"model_yaml\":$yaml}" || status=1
+          done
+          exit $status
