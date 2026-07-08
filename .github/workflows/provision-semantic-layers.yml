@@ -29,8 +29,7 @@ jobs:
             -d "{\"token\":\"$OIDC_TOKEN\"}" | jq -r '.access_token')
           if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
             echo "Token exchange FAILED — response from the Management API:"
-            curl -sS -X POST "$MANAGEMENT_API/api/v1/management/token" \\
-              -H 'Content-Type: application/json' -d "{\"token\":\"$OIDC_TOKEN\"}"
+            curl -sS -X POST "$MANAGEMENT_API/api/v1/management/token" -H 'Content-Type: application/json' -d "{\"token\":\"$OIDC_TOKEN\"}"
             exit 1
           fi
           echo "::add-mask::$ACCESS_TOKEN"
@@ -75,8 +74,7 @@ jobs:
             -d "{\"token\":\"$OIDC_TOKEN\"}" | jq -r '.access_token')
           if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
             echo "Token exchange FAILED — response from the Management API:"
-            curl -sS -X POST "$MANAGEMENT_API/api/v1/management/token" \\
-              -H 'Content-Type: application/json' -d "{\"token\":\"$OIDC_TOKEN\"}"
+            curl -sS -X POST "$MANAGEMENT_API/api/v1/management/token" -H 'Content-Type: application/json' -d "{\"token\":\"$OIDC_TOKEN\"}"
             exit 1
           fi
           echo "::add-mask::$ACCESS_TOKEN"
