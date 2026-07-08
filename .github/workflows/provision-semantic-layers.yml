@@ -10,7 +10,7 @@ permissions:
 
 env:
   MANAGEMENT_API: https://app.frontierops.ai   # also the required OIDC audience
-  CONNECTOR: snowflake                          # database connector slug in the target orgs
+  CONNECTOR: test                              # database connector slug in the target orgs
 
 jobs:
   # ── Pull requests: validate every YAML file, fail the check on errors ──
