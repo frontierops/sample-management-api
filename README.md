@@ -11,7 +11,7 @@ trust binding configured on the platform.
 ```
 orgs/
   test/                      ← the target organization's SLUG on FrontierOps
-    test/                    ← the database connector's SLUG in that org
+    connector-slug/          ← the database connector's SLUG in that org
       semantic-layers/
         analytics.yaml       ← the semantic layer's SLUG = the filename
 ```
@@ -35,10 +35,12 @@ before provisioning layers that reference it.
    - *Validate*: no branch ref, scope semantic layers read only
 
    The token exchange picks the right one automatically (most specific wins).
-2. **This repo**: nothing. The workflow file's `id-token: write` permission is
-   the only "configuration" — no secrets, no variables, no GitHub Apps.
-3. Adjust `env.CONNECTOR` in the workflow to the database connector slug that
-   exists in the target org (the semantic layer attaches to it).
+2. **This repo**: nothing to configure. The workflow file's `id-token: write`
+   permission is the only "setup" — no secrets, no variables, no GitHub Apps.
+3. **Create the database connector** in each target org (dashboard → switch to
+   that org → Connectors → Add), then name the connector folder in this repo to
+   match its slug. In this sample, org `test` has a connector slugged
+   `connector-slug`, so the folder is `orgs/test/connector-slug/`.
 
 ## What happens on each event
 
@@ -58,6 +60,11 @@ so an invalid semantic layer can never reach `main`.
   exactly, branch pin, binding enabled) or the OIDC token was already used.
 - `403` on a PUT — that org isn't in the binding's grant, the binding was
   disabled, or the token lacks write scope.
+- `404 connector_not_found` — the connector folder name doesn't match a
+  connector slug in that org. Switch to the org in the dashboard, open
+  Connectors, and confirm a database connector exists whose slug equals the
+  folder name (connectors are per-org — one created in the parent org does not
+  exist in a child).
 - `503 jwks_unavailable` — transient GitHub keys outage; re-run the job.
 - Every applied change appears in Settings → Management API → the binding's
   Activity panel, with the GitHub run id and author.
