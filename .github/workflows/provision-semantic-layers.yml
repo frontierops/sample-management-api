@@ -10,9 +10,9 @@ permissions:
 
 env:
   MANAGEMENT_API: https://app.frontierops.ai   # also the required OIDC audience
-  # The database connector each semantic layer attaches to varies PER ORG (each
-  # customer has its own connector, possibly a different vendor). So it's not a
-  # global here — each org declares its connector in orgs/<slug>/connector-slug.
+  # Layout: orgs/<org-slug>/<connector-slug>/semantic-layers/<layer-slug>.yaml
+  # The connector is a directory level, so an org with several connectors keeps
+  # each connector's layers separate. Both org and connector come from the path.
 
 jobs:
   # ── Pull requests: validate every YAML file, fail the check on errors ──
@@ -40,9 +40,9 @@ jobs:
       - name: Validate semantic layers (dry-run, nothing written)
         run: |
           status=0
-          for file in orgs/*/semantic-layers/*.yaml; do
+          for file in orgs/*/*/semantic-layers/*.yaml; do
             [ -e "$file" ] || continue
-            org=$(basename "$(dirname "$(dirname "$file")")")
+            org=$(basename "$(dirname "$(dirname "$(dirname "$file")")")")
             slug=$(basename "$file" .yaml)
             yaml=$(jq -Rs . < "$file")
             result=$(curl -sS --fail-with-body -X POST \
@@ -82,19 +82,14 @@ jobs:
           echo "::add-mask::$ACCESS_TOKEN"
           echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> "$GITHUB_ENV"
 
-      - name: Apply semantic layers (orgs/<org-slug>/semantic-layers/<layer-slug>.yaml)
+      - name: Apply semantic layers (orgs/<org-slug>/<connector-slug>/semantic-layers/<layer-slug>.yaml)
         run: |
           status=0
-          for file in orgs/*/semantic-layers/*.yaml; do
+          for file in orgs/*/*/semantic-layers/*.yaml; do
             [ -e "$file" ] || continue
-            org=$(basename "$(dirname "$(dirname "$file")")")
+            org=$(basename "$(dirname "$(dirname "$(dirname "$file")")")")
+            connector=$(basename "$(dirname "$(dirname "$file")")")
             slug=$(basename "$file" .yaml)
-            # Each org declares which database connector its layers attach to.
-            if [ ! -f "orgs/$org/connector-slug" ]; then
-              echo "✗ $org/$slug: missing orgs/$org/connector-slug (the connector slug in the '$org' org)"
-              status=1; continue
-            fi
-            connector=$(tr -d '[:space:]' < "orgs/$org/connector-slug")
             echo "Applying $org/$slug (connector: $connector)"
             yaml=$(jq -Rs . < "$file")
             curl -sS --fail-with-body -X PUT \
